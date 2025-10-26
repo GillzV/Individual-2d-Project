@@ -876,7 +876,7 @@ Transform:
   m_GameObject: {fileID: 434922726}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.35, y: -1.62, z: 0}
+  m_LocalPosition: {x: 2.76, y: -1.56, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1245,10 +1245,15 @@ MonoBehaviour:
     m_Bits: 64
   health: 100
   deathEffect: {fileID: 0}
-  deathAnimationDuration: 0
+  deathAnimationDuration: 1
   animator: {fileID: 1387152407}
   deathAnimationTrigger: isDead
-  destroyAfterAnimation: 1
+  destroyAfterAnimation: 0
+  damageAnimationTrigger: getsHurt
+  damageAnimationDuration: 0.3
+  damageEffect: {fileID: 0}
+  damageFlashColor: {r: 1, g: 0, b: 0, a: 1}
+  damageFlashDuration: 0.1
   groundCheckDistance: 0.15
   isGrounded: 0
 --- !u!50 &1387152403
@@ -1727,8 +1732,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   firePoint: {fileID: 434922727}
-  bulletPrefab: {fileID: 0}
+  bulletPrefab: {fileID: 6953214061513004896, guid: 2c5513c2a3811c447bd977bfa13a06d2, type: 3}
   bulletForce: 20
+  shootingAnimationDuration: 0.3
+  shootingAnimationTrigger: isShooting
   firePointXOffset: 0.5
   firePointYOffset: 0
   isGrounded: 0

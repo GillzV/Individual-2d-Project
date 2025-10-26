@@ -19,6 +19,10 @@ public class PlayerController2D : MonoBehaviour
     public Transform firePoint;
     public GameObject bulletPrefab;
     public float bulletForce = 20f;
+    public float shootingAnimationDuration = 0.3f; // How long the shooting animation plays
+    
+    [Header("Animation Settings")]
+    public string shootingAnimationTrigger = "isShooting"; // Name of the shooting trigger in animator
 
     // Fallback offsets if firePoint won't move
     public float firePointXOffset = 0.5f;   // to the right when facingRight
@@ -28,6 +32,8 @@ public class PlayerController2D : MonoBehaviour
     [SerializeField] private bool isGrounded;
     private float inputX;
     private bool facingRight = true;
+    private bool isShooting = false;
+    private float shootingTimer = 0f;
 
     void Awake()
     {
@@ -66,7 +72,23 @@ public class PlayerController2D : MonoBehaviour
             Flip();
         }
 
+        // Handle shooting animation timer
+        if (isShooting)
+        {
+            shootingTimer -= Time.deltaTime;
+            if (shootingTimer <= 0f)
+            {
+                isShooting = false;
+            }
+        }
+
         animator.SetBool("isRunning", inputX != 0);
+        
+        // Set shooting animation using the configurable trigger name
+        if (animator != null && !string.IsNullOrEmpty(shootingAnimationTrigger))
+        {
+            animator.SetBool(shootingAnimationTrigger, isShooting);
+        }
 
         if (Input.GetButtonDown("Fire1"))
             Shoot();
@@ -106,32 +128,18 @@ public class PlayerController2D : MonoBehaviour
         }
     }
 
-        private void Shoot()
+    private void Shoot()
     {
         if (bulletPrefab == null) return;
 
-        // --- Fallback spawn computation ---
-        Vector3 spawnPos;
-        Vector2 dir;
+        // Trigger shooting animation
+        isShooting = true;
+        shootingTimer = shootingAnimationDuration;
+        
+    }
 
-        if (firePoint != null)
-        {
-            // Use firePoint position but determine direction from facingRight
-            spawnPos = firePoint.position;
-            dir = facingRight ? Vector2.right : Vector2.left;
-        }
-        else
-        {
-            // Fallback: compute spawn from player center
-            float x = facingRight ? firePointXOffset : -firePointXOffset;
-            spawnPos = transform.position + new Vector3(x, firePointYOffset, 0f);
-            dir = facingRight ? Vector2.right : Vector2.left;
-        }
-
-        GameObject bullet = Instantiate(bulletPrefab, spawnPos, Quaternion.identity);
-        if (bullet.TryGetComponent<Rigidbody2D>(out var bulletRb))
-        {
-            bulletRb.velocity = dir * bulletForce;
-        }
+    public bool IsShooting()
+    {
+        return isShooting;
     }
 }
