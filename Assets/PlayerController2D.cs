@@ -6,6 +6,9 @@ public class PlayerController2D : MonoBehaviour
 {
     [SerializeField] private Animator animator;
 
+    public int health;
+    public int maxHealth = 100;
+
     [Header("Movement Settings")]
     public float moveSpeed = 8f;
     public float jumpForce = 14f;
@@ -22,11 +25,7 @@ public class PlayerController2D : MonoBehaviour
     public float shootingAnimationDuration = 0.3f; // How long the shooting animation plays
     
     [Header("Animation Settings")]
-    public string shootingAnimationTrigger = "isShooting"; // Name of the shooting trigger in animator
-
-    // Fallback offsets if firePoint won't move
-    public float firePointXOffset = 0.5f;   // to the right when facingRight
-    public float firePointYOffset = 0f;
+    public string shootingAnimationTrigger = "isShooting"; 
 
     private Rigidbody2D rb;
     [SerializeField] private bool isGrounded;
@@ -39,16 +38,9 @@ public class PlayerController2D : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
 
-        // Ensure firePoint exists and is parented
-        if (firePoint != null)
-        {
-            if (firePoint.parent != transform)
-                firePoint.SetParent(transform, true);
+        health = maxHealth;
 
-            // Ensure non-zero local X so mirroring is visible
-            if (Mathf.Approximately(firePoint.localPosition.x, 0f))
-                firePoint.localPosition = new Vector3(firePointXOffset, firePointYOffset, 0f);
-        }
+        
     }
 
     void Update()
@@ -142,4 +134,14 @@ public class PlayerController2D : MonoBehaviour
     {
         return isShooting;
     }
+    public void TakeDamage(int damage)
+    {
+        health -= damage;
+        
+        if (health <= 0)
+        {
+            Destroy(gameObject);
+        }
+    }
+
 }

@@ -12,19 +12,19 @@ public class Enemy : MonoBehaviour
     [Header("Combat")]
     public int health = 100;
     public GameObject deathEffect;
-    public float deathAnimationDuration = 1f; // How long the death animation plays
-    public Animator animator; // Reference to animator for death animation
+    public float deathAnimationDuration = 1f;
+    public Animator animator;
     
     [Header("Death Animation Settings")]
-    public string deathAnimationTrigger = "isDead"; // Name of the death trigger in animator
-    public bool destroyAfterAnimation = true; // Whether to destroy the object after animation
+    public string deathAnimationTrigger = "isDead";
+    public bool destroyAfterAnimation = true;
     
     [Header("Damage Animation Settings")]
-    public string damageAnimationTrigger = "TakeDamage"; // Name of the damage trigger in animator
-    public float damageAnimationDuration = 0.3f; // How long the damage animation plays
-    public GameObject damageEffect; // Optional damage effect to spawn
-    public Color damageFlashColor = Color.red; // Color to flash when taking damage
-    public float damageFlashDuration = 0.1f; // How long to flash
+    public string damageAnimationTrigger = "TakeDamage";
+    public float damageAnimationDuration = 0.3f;
+    public GameObject damageEffect;
+    public Color damageFlashColor = Color.red;
+    public float damageFlashDuration = 0.1f;
     
     private bool isDead = false;
     private float deathTimer = 0f;
@@ -32,6 +32,120 @@ public class Enemy : MonoBehaviour
     private float damageTimer = 0f;
     private SpriteRenderer spriteRenderer;
     private Color originalColor;
+
+    [Header("Chase Settings")]
+    public Transform player;
+    public float aggroRange = 6f;
+    public float loseRange = 9f;
+    public float moveSpeed = 2f;
+    public float stoppingDistance = 0.35f;
+    [Tooltip("Buffer zone to prevent animation flickering at range boundaries")]
+    public float rangeTolerance = 0.5f;
+    
+    [Header("Advanced Chase Settings")]
+    [Tooltip("Minimum distance before enemy starts fleeing")]
+    public float fleeDistance = 1.5f;
+    [Tooltip("How fast enemy moves when fleeing")]
+    public float fleeSpeed = 3f;
+    [Tooltip("Enable fleeing behavior when player gets too close")]
+    public bool enableFleeing = false;
+    [Tooltip("Smoothing for direction changes (lower = more responsive)")]
+    public float directionSmoothTime = 0.1f;
+    [Tooltip("Minimum velocity to consider enemy as moving")]
+    public float movementThreshold = 0.2f;
+    [Tooltip("Time delay before updating animation state")]
+    public float animationUpdateDelay = 0.15f;
+    
+    private bool isChasing = false;
+    private bool isFleeing = false;
+    private float currentVelocityX = 0f;
+    private int lastFacingDirection = 1; // 1 for right, -1 for left
+    private bool isAnimationRunning = false;
+    private float animationTimer = 0f;
+
+    [Header("Detection")]
+    public float groundCheckDistance = 0.5f;
+
+    private Rigidbody2D rb;
+    [SerializeField] private bool isGrounded;
+
+    void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            originalColor = spriteRenderer.color;
+        }
+
+        if (player == null)
+        {
+            var go = GameObject.FindGameObjectWithTag("Player");
+            if (go) player = go.transform;
+        }
+        
+        // Store initial facing direction
+        lastFacingDirection = transform.localScale.x >= 0 ? 1 : -1;
+    }
+
+    void ChasePlayer(float distToPlayer)
+    {
+        if (player == null || isDead) return;
+
+        Vector2 dirToPlayer = (player.position - transform.position);
+        float horizontalDist = dirToPlayer.x;
+        float absHorizontalDist = Mathf.Abs(horizontalDist);
+        
+        // Determine target direction (1 = right, -1 = left)
+        int targetDirection = horizontalDist >= 0 ? 1 : -1;
+        
+        float targetVelocityX = 0f;
+        
+        // Check if player is too close and fleeing is enabled
+        if (enableFleeing && distToPlayer < fleeDistance)
+        {
+            // FLEE: Run away from player
+            isFleeing = true;
+            targetVelocityX = -targetDirection * fleeSpeed;
+        }
+        else if (absHorizontalDist > stoppingDistance)
+        {
+            // CHASE: Move toward player
+            isFleeing = false;
+            targetVelocityX = targetDirection * moveSpeed;
+        }
+        else
+        {
+            // STOP: Within stopping distance
+            targetVelocityX = 0f;
+            isFleeing = false;
+        }
+        
+        // Smooth the velocity change for more natural movement
+        float velocityRef = 0f;
+        currentVelocityX = Mathf.SmoothDamp(
+            rb.velocity.x, 
+            targetVelocityX, 
+            ref velocityRef, 
+            directionSmoothTime
+        );
+        
+        // Apply velocity
+        rb.velocity = new Vector2(currentVelocityX, rb.velocity.y);
+        
+        // Update facing direction - only change if we're actually moving
+        if (Mathf.Abs(currentVelocityX) > movementThreshold)
+        {
+            int movementDirection = currentVelocityX > 0 ? 1 : -1;
+            if (movementDirection != lastFacingDirection)
+            {
+                lastFacingDirection = movementDirection;
+                var s = transform.localScale;
+                s.x = Mathf.Abs(s.x) * movementDirection;
+                transform.localScale = s;
+            }
+        }
+    }
 
     public void TakeDamage(int damage)
     {
@@ -42,36 +156,32 @@ public class Enemy : MonoBehaviour
         if (health <= 0)
         {
             Die();
-            return; // this should stop the hurt animation from playing if im dead
+            return;
         }
 
-        OnTakeDamage(); // only if still alive
+        OnTakeDamage();
     }
 
     void BecomeCorpse()
     {
-        // Stop physics
         var rb = GetComponent<Rigidbody2D>();
         if (rb)
         {
             rb.velocity = Vector2.zero;
             rb.angularVelocity = 0f;
-            rb.bodyType = RigidbodyType2D.Kinematic;     // or Static
+            rb.bodyType = RigidbodyType2D.Kinematic;
             rb.constraints = RigidbodyConstraints2D.FreezeAll;
         }
 
-        // Disable all colliders so player/bullets pass through
         foreach (var col in GetComponentsInChildren<Collider2D>())
             col.enabled = false;
 
-        // Optional: move to a non-colliding layer called "Dead"
         int deadLayer = LayerMask.NameToLayer("Dead");
         if (deadLayer >= 0)
             SetLayerRecursively(gameObject, deadLayer);
 
-        // Optional: push visuals behind
         var sr = GetComponentInChildren<SpriteRenderer>();
-        if (sr) sr.sortingOrder -= 10; // or sr.sortingLayerName = "Background";
+        if (sr) sr.sortingOrder -= 10;
     }
 
     void SetLayerRecursively(GameObject go, int layer)
@@ -80,27 +190,21 @@ public class Enemy : MonoBehaviour
         foreach (Transform t in go.transform)
             SetLayerRecursively(t.gameObject, layer);
     }
-
-
     
     private void OnTakeDamage()
     {
-        // Trigger damage animation
         if (animator != null && !string.IsNullOrEmpty(damageAnimationTrigger))
         {
             animator.SetTrigger(damageAnimationTrigger);
         }
         
-        // Spawn damage effect
         if (damageEffect != null)
         {
             Instantiate(damageEffect, transform.position, Quaternion.identity);
         }
         
-        // Start damage flash
         StartDamageFlash();
         
-        // Set damage state
         isTakingDamage = true;
         damageTimer = damageAnimationDuration;
     }
@@ -115,11 +219,8 @@ public class Enemy : MonoBehaviour
     
     private System.Collections.IEnumerator DamageFlashCoroutine()
     {
-        // Flash to damage color
         spriteRenderer.color = damageFlashColor;
         yield return new WaitForSeconds(damageFlashDuration);
-        
-        // Return to original color
         spriteRenderer.color = originalColor;
     }
     
@@ -134,42 +235,66 @@ public class Enemy : MonoBehaviour
     }
 
     void Die()
-{
-    if (isDead) return;
-    isDead = true;
-
-    if (animator != null)
     {
-        if (!string.IsNullOrEmpty(damageAnimationTrigger))
-            animator.ResetTrigger(damageAnimationTrigger);   // cancel any pending hurt
+        if (isDead) return;
+        isDead = true;
 
-        animator.ResetTrigger(deathAnimationTrigger);        // clean slate
-        animator.SetTrigger(deathAnimationTrigger);          // fire death
-    }
-    BecomeCorpse();
-
-}
-
-
-    [Header("Detection")]
-    public float groundCheckDistance = 0.5f; // Distance to check ahead for ground/ledges
-
-    private Rigidbody2D rb;
-    [SerializeField] private bool isGrounded;
-
-    void Awake()
-    {
-        rb = GetComponent<Rigidbody2D>();
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null)
+        if (animator != null)
         {
-            originalColor = spriteRenderer.color;
+            if (!string.IsNullOrEmpty(damageAnimationTrigger))
+                animator.ResetTrigger(damageAnimationTrigger);
+
+            animator.ResetTrigger(deathAnimationTrigger);
+            animator.SetTrigger(deathAnimationTrigger);
         }
+        
+        BecomeCorpse();
+        deathTimer = deathAnimationDuration;
     }
 
     void Update()
     {
-        // Handle death animation timer
+        if (!isDead && player != null)
+        {
+            float dist = Vector2.Distance(transform.position, player.position);
+            
+            // Use hysteresis to prevent flickering at range boundaries
+            if (!isChasing)
+            {
+                if (dist <= aggroRange)
+                {
+                    isChasing = true;
+                }
+            }
+            else // Currently chasing
+            {
+                // Only stop if player is beyond lose range
+                if (dist > loseRange)
+                {
+                    isChasing = false;
+                    isFleeing = false;
+                    rb.velocity = new Vector2(0f, rb.velocity.y);
+                    currentVelocityX = 0f;
+                }
+                else
+                {
+                    ChasePlayer(dist);
+                }
+            }
+            
+            // Handle animation with delay to prevent flickering
+            UpdateRunAnimation();
+        }
+        else
+        {
+            // Not chasing, ensure animation is off
+            if (isAnimationRunning && animator)
+            {
+                animator.SetBool("isRunning", false);
+                isAnimationRunning = false;
+            }
+        }
+        
         if (isDead && destroyAfterAnimation)
         {
             deathTimer -= Time.deltaTime;
@@ -179,7 +304,6 @@ public class Enemy : MonoBehaviour
             }
         }
         
-        // Handle damage animation timer
         if (isTakingDamage)
         {
             damageTimer -= Time.deltaTime;
@@ -187,6 +311,33 @@ public class Enemy : MonoBehaviour
             {
                 isTakingDamage = false;
             }
+        }
+    }
+    
+    private void UpdateRunAnimation()
+    {
+        if (animator == null) return;
+        
+        // Check if enemy should be running based on velocity
+        bool shouldBeRunning = isChasing && Mathf.Abs(rb.velocity.x) > movementThreshold;
+        
+        // If state changed, start timer
+        if (shouldBeRunning != isAnimationRunning)
+        {
+            animationTimer += Time.deltaTime;
+            
+            // Only update animation after delay threshold
+            if (animationTimer >= animationUpdateDelay)
+            {
+                animator.SetBool("isRunning", shouldBeRunning);
+                isAnimationRunning = shouldBeRunning;
+                animationTimer = 0f;
+            }
+        }
+        else
+        {
+            // State is stable, reset timer
+            animationTimer = 0f;
         }
     }
 
@@ -197,21 +348,16 @@ public class Enemy : MonoBehaviour
 
     private void CheckGrounded()
     {
-        // Don't check ground if dead
         if (isDead) return;
         
-        // Primary ground check using OverlapCircle
         bool overlapGrounded = groundCheck != null &&
                               Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundMask);
         
-        // Backup: contact-based grounded check
         bool contactGrounded = rb != null && rb.IsTouchingLayers(groundMask);
 
-        // Player is grounded if any of the checks return true
         isGrounded = overlapGrounded || contactGrounded;
     }
 
-    // Helper method to check if there's ground ahead (useful for AI)
     public bool CheckGroundAhead(float direction)
     {
         if (groundCheck == null) return false;
@@ -222,13 +368,11 @@ public class Enemy : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        // Visualize ground check in editor
         if (groundCheck != null)
         {
             Gizmos.color = isGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
             
-            // Visualize ground check ahead (for AI)
             if (Application.isPlaying)
             {
                 Gizmos.color = Color.blue;
@@ -236,5 +380,6 @@ public class Enemy : MonoBehaviour
                 Gizmos.DrawWireSphere(checkAheadPos, groundCheckRadius);
             }
         }
+        
     }
 }
