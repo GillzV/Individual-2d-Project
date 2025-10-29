@@ -39,6 +39,12 @@ TagManager:
   - 
   - 
   m_SortingLayers:
+  - name: Invis
+    uniqueID: 2743135007
+    locked: 0
+  - name: BehindDefault
+    uniqueID: 3446655763
+    locked: 0
   - name: Default
     uniqueID: 0
     locked: 0

@@ -17,11 +17,14 @@ public class Bullet : MonoBehaviour
     
     void Start()
     {
-        rb.velocity = transform.right * speed;
+        // Only set default velocity if no custom velocity has been set
+        if (rb.velocity == Vector2.zero)
+        {
+            rb.velocity = transform.right * speed;
+        }
+        
         mainCamera = Camera.main;
         
-        // Fallback: destroy after some time if camera check fails
-        Destroy(gameObject, 10f);
     }
     
     void Update()

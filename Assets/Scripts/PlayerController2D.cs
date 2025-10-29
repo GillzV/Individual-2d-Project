@@ -1,10 +1,18 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
+
 
 public class PlayerController2D : MonoBehaviour
 {
     [SerializeField] private Animator animator;
+
+    public AudioSource src;
+    public AudioClip ShootSound, FootstepsSound, 
+    EnemyHurtSound, PlayerDeathSound, WinSound, ClickSound;
+    
 
     public int health;
     public int maxHealth = 100;
@@ -85,9 +93,11 @@ public class PlayerController2D : MonoBehaviour
             animator.SetBool(shootingAnimationTrigger, isShooting);
         }
 
-        if (Input.GetButtonDown("Fire1"))
+        if (Input.GetButtonDown("Fire1")) //plays the sound when the player shoots
+        {
             Shoot();
-
+            src.PlayOneShot(ShootSound, 0.25f);
+        }
     }
 
     private void Flip()
@@ -137,6 +147,7 @@ public class PlayerController2D : MonoBehaviour
     {
         return isShooting;
     }
+
     public void TakeDamage(int damage)
     {
         health -= damage;
@@ -146,6 +157,7 @@ public class PlayerController2D : MonoBehaviour
         if (health <= 0)
         {
             Destroy(gameObject);
+            SceneManager.LoadScene("GameOver");
         }
         
     }

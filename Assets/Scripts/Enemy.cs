@@ -8,6 +8,10 @@ public class Enemy : MonoBehaviour
     public Transform groundCheck;
     public float groundCheckRadius = 0.15f;
     public LayerMask groundMask;
+
+    public AudioSource src;
+    public AudioClip HurtSound, DeathSound, GrowlSound;
+    
     
     [Header("Combat")]
     public int health = 100;
@@ -62,6 +66,8 @@ public class Enemy : MonoBehaviour
     private int lastFacingDirection = 1; // 1 for right, -1 for left
     private bool isAnimationRunning = false;
     private float animationTimer = 0f;
+    
+    public EnemyHealthBar enemyHealthBar;
 
     [Header("Detection")]
     public float groundCheckDistance = 0.5f;
@@ -71,6 +77,22 @@ public class Enemy : MonoBehaviour
 
     void Awake()
     {
+		// Ensure enemyHealthBar reference exists
+		if (enemyHealthBar == null)
+		{
+			enemyHealthBar = GetComponentInChildren<EnemyHealthBar>();
+		}
+
+		// Initialize health bar if available
+		if (enemyHealthBar != null)
+		{
+			enemyHealthBar.SetMaxHealth(health);
+		}
+		else
+		{
+			Debug.LogWarning($"Enemy '{name}' is missing EnemyHealthBar reference.");
+		}
+
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         if (spriteRenderer != null)
@@ -86,6 +108,8 @@ public class Enemy : MonoBehaviour
         
         // Store initial facing direction
         lastFacingDirection = transform.localScale.x >= 0 ? 1 : -1;
+
+        
     }
 
     void ChasePlayer(float distToPlayer)
@@ -147,19 +171,22 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    public void TakeDamage(int damage)
+	 public void TakeDamage(int damage)
     {
-        if (isDead) return;
-
         health -= damage;
+		
+		// Update health bar if available
+		if (enemyHealthBar != null)
+		{
+			enemyHealthBar.SetHealth(health);
+		}
 
         if (health <= 0)
         {
-            Die();
-            return;
+            Destroy(gameObject);
+            src.PlayOneShot(DeathSound, 0.25f);
         }
-
-        OnTakeDamage();
+        
     }
 
     void BecomeCorpse()

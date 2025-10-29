@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class Raider : MonoBehaviour
 {
     [Header("Detection")]
@@ -9,6 +10,10 @@ public class Raider : MonoBehaviour
     public float detectionRange = 8f;
     public float loseRange = 12f;
     public LayerMask playerLayer = 1;
+
+
+    public AudioSource src;
+    public AudioClip ShootSound, HurtSound, DeathSound;
     
     [Header("Combat")]
     public int health = 100;
@@ -33,11 +38,6 @@ public class Raider : MonoBehaviour
     public float deathAnimationDuration = 1f;
     public float damageAnimationDuration = 0.3f;
     
-    [Header("Audio")]
-    public AudioSource audioSource;
-    public AudioClip shootSound;
-    public AudioClip hurtSound;
-    public AudioClip deathSound;
     
     // Private variables
     private bool isDead = false;
@@ -171,6 +171,7 @@ public class Raider : MonoBehaviour
         
         // Create bullet
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
+        src.PlayOneShot(ShootSound, 0.25f);
         
         // Set bullet direction and speed
         Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
@@ -190,7 +191,6 @@ public class Raider : MonoBehaviour
         // Play shoot animation (bool on)
         if (animator != null)
         {
-            Debug.Log($"Setting {shootAnimationBool} to true");
             animator.SetBool(shootAnimationBool, true);
         }
         else
@@ -198,11 +198,7 @@ public class Raider : MonoBehaviour
             Debug.LogWarning("Animator is null! Cannot play shoot animation.");
         }
         
-        // Play shoot sound
-        if (audioSource != null && shootSound != null)
-        {
-            audioSource.PlayOneShot(shootSound);
-        }
+       
         
         // Reset shooting state after animation
         StartCoroutine(ResetShootingState());
@@ -240,6 +236,7 @@ public class Raider : MonoBehaviour
         {
             Die();
             return;
+            src.PlayOneShot(DeathSound, 0.15f);
         }
 
         OnTakeDamage();
@@ -253,7 +250,6 @@ public class Raider : MonoBehaviour
         // Play hurt animation
         if (animator != null)
         {
-            Debug.Log($"Setting {hurtAnimationBool} to true");
             animator.SetBool(hurtAnimationBool, true);
         }
         else
@@ -261,11 +257,7 @@ public class Raider : MonoBehaviour
             Debug.LogWarning("Animator is null! Cannot play hurt animation.");
         }
         
-        // Play hurt sound
-        if (audioSource != null && hurtSound != null)
-        {
-            audioSource.PlayOneShot(hurtSound);
-        }
+
         
         // Damage effect
         if (damageEffect != null)
@@ -299,7 +291,6 @@ public class Raider : MonoBehaviour
         // Play death animation
         if (animator != null)
         {
-            Debug.Log($"Setting {deathAnimationBool} to true");
             animator.SetBool(deathAnimationBool, true);
         }
         else
@@ -307,11 +298,6 @@ public class Raider : MonoBehaviour
             Debug.LogWarning("Animator is null! Cannot play death animation.");
         }
         
-        // Play death sound
-        if (audioSource != null && deathSound != null)
-        {
-            audioSource.PlayOneShot(deathSound);
-        }
         
         // Death effect
         if (deathEffect != null)
@@ -365,7 +351,7 @@ public class Raider : MonoBehaviour
             deathTimer -= Time.deltaTime;
             if (deathTimer <= 0f)
             {
-                Destroy(gameObject);
+                //Destroy(gameObject);
             }
         }
         
